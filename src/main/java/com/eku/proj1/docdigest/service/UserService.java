@@ -1,9 +1,11 @@
 package com.eku.proj1.docdigest.service;
 
+import com.eku.proj1.docdigest.dto.RegisterRequest;
+import com.eku.proj1.docdigest.dto.RegisterResponse;
 import com.eku.proj1.docdigest.entity.User;
 
 public interface UserService {
-     User registerUser(String name,String email,String password);
+     RegisterResponse registerUser(RegisterRequest registerRequest);
 
      User loginUser(String email, String password);
 

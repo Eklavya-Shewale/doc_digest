@@ -1,9 +1,12 @@
 package com.eku.proj1.docdigest.service.impl;
 
+import com.eku.proj1.docdigest.dto.RegisterRequest;
+import com.eku.proj1.docdigest.dto.RegisterResponse;
 import com.eku.proj1.docdigest.entity.User;
 import com.eku.proj1.docdigest.repository.UserRepository;
 import com.eku.proj1.docdigest.service.UserService;
 import jdk.jshell.spi.ExecutionControl;
+import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -19,20 +22,22 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public User registerUser(String name, String email, String password) {
-        if (userRepository.existsByEmail(email)) {
+    public RegisterResponse registerUser(RegisterRequest userDTO) {
+        User user = new User();
+        ModelMapper mapper = new ModelMapper();
+
+        mapper.map(userDTO, user);
+        if (userRepository.existsByEmail(user.getEmail())) {
             throw new RuntimeException("Email already exists");
         }
 
-        User user = new User();
-        user.setName(name);
-        user.setEmail(email);
         //TODO: Encode password before saving
-        user.setPassword(password);
 
 
-        userRepository.save(user);
-        return user;
+
+        User savedUser = userRepository.save(user);
+
+        return mapper.map(savedUser, RegisterResponse.class);
     }
 
     @Override
