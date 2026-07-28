@@ -1,4 +1,4 @@
-package com.example.Proj1.DocDigest;
+package com.eku.proj1.docdigest;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
