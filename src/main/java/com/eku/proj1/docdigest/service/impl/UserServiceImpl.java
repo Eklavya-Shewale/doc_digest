@@ -1,14 +1,19 @@
 package com.eku.proj1.docdigest.service.impl;
 
+import com.eku.proj1.docdigest.dto.LoginRequest;
+import com.eku.proj1.docdigest.dto.LoginResponse;
 import com.eku.proj1.docdigest.dto.RegisterRequest;
 import com.eku.proj1.docdigest.dto.RegisterResponse;
 import com.eku.proj1.docdigest.entity.User;
+import com.eku.proj1.docdigest.exception.EmailAlreadyExistsException;
+import com.eku.proj1.docdigest.exception.UserNotFoundException;
 import com.eku.proj1.docdigest.repository.UserRepository;
 import com.eku.proj1.docdigest.service.UserService;
-import jdk.jshell.spi.ExecutionControl;
 import org.modelmapper.ModelMapper;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import java.util.Optional;
 
 
 @Service
@@ -16,33 +21,39 @@ public class UserServiceImpl implements UserService {
 
 
     private final UserRepository userRepository;
+    private final ModelMapper modelMapper;
+    private final PasswordEncoder passwordEncoder;
 
-    public UserServiceImpl(UserRepository userRepository) {
+    public UserServiceImpl(UserRepository userRepository,
+                           ModelMapper modelMapper,
+                           PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
+        this.modelMapper = modelMapper;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
     public RegisterResponse registerUser(RegisterRequest userDTO) {
         User user = new User();
-        ModelMapper mapper = new ModelMapper();
 
-        mapper.map(userDTO, user);
+
+        modelMapper.map(userDTO, user);
         if (userRepository.existsByEmail(user.getEmail())) {
-            throw new RuntimeException("Email already exists");
+            throw new EmailAlreadyExistsException("Email already exists");
         }
 
-        //TODO: Encode password before saving
-
-
+        user.setPassword(passwordEncoder.encode(userDTO.getPassword()));
 
         User savedUser = userRepository.save(user);
 
-        return mapper.map(savedUser, RegisterResponse.class);
+        return modelMapper.map(savedUser, RegisterResponse.class);
     }
 
     @Override
-    public User loginUser(String email, String password) {
-        return null;
+    public LoginResponse loginUser(LoginRequest loginRequest) {
+        User user = userRepository.findByEmail(loginRequest.getEmail())
+                .orElseThrow(()->new UserNotFoundException("User does not exist"));
+        return new LoginResponse("Login successful");
     }
 
     @Override

@@ -4,6 +4,7 @@ import com.eku.proj1.docdigest.dto.RegisterRequest;
 import com.eku.proj1.docdigest.dto.RegisterResponse;
 import com.eku.proj1.docdigest.entity.User;
 import com.eku.proj1.docdigest.service.UserService;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,10 +19,10 @@ public class UserController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<RegisterResponse> registerUser(@RequestBody RegisterRequest userDTO){
+    public ResponseEntity<RegisterResponse> registerUser(@Valid @RequestBody RegisterRequest userDTO)
+    {
         RegisterResponse registeredUser = userService.registerUser(userDTO);
         return new ResponseEntity<>(registeredUser, HttpStatus.CREATED);
-
 
     }
 }
