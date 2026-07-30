@@ -26,4 +26,12 @@ public class GlobalExceptionHandler {
                 HttpStatus.UNAUTHORIZED
         );
     }
+
+    @ExceptionHandler(InvalidCredentialException.class)
+    public ResponseEntity<?> handleInvalidCredentialException(InvalidCredentialException ex) {
+        return new ResponseEntity<>(
+                Map.of("error",ex.getMessage()),
+                HttpStatus.UNAUTHORIZED
+        );
+    }
 }

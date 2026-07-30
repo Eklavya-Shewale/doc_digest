@@ -6,8 +6,10 @@ import com.eku.proj1.docdigest.dto.RegisterRequest;
 import com.eku.proj1.docdigest.dto.RegisterResponse;
 import com.eku.proj1.docdigest.entity.User;
 import com.eku.proj1.docdigest.exception.EmailAlreadyExistsException;
+import com.eku.proj1.docdigest.exception.InvalidCredentialException;
 import com.eku.proj1.docdigest.exception.UserNotFoundException;
 import com.eku.proj1.docdigest.repository.UserRepository;
+import com.eku.proj1.docdigest.security.JwtService;
 import com.eku.proj1.docdigest.service.UserService;
 import org.modelmapper.ModelMapper;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -23,13 +25,15 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final ModelMapper modelMapper;
     private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
 
     public UserServiceImpl(UserRepository userRepository,
                            ModelMapper modelMapper,
-                           PasswordEncoder passwordEncoder) {
+                           PasswordEncoder passwordEncoder, JwtService jwtService) {
         this.userRepository = userRepository;
         this.modelMapper = modelMapper;
         this.passwordEncoder = passwordEncoder;
+        this.jwtService = jwtService;
     }
 
     @Override
@@ -53,7 +57,13 @@ public class UserServiceImpl implements UserService {
     public LoginResponse loginUser(LoginRequest loginRequest) {
         User user = userRepository.findByEmail(loginRequest.getEmail())
                 .orElseThrow(()->new UserNotFoundException("User does not exist"));
-        return new LoginResponse("Login successful");
+
+       if(!passwordEncoder.matches(loginRequest.getPassword(), user.getPassword()))
+       {
+           throw new InvalidCredentialException("Invalid email or password");
+       }
+       String token = jwtService.generateToken(user.getEmail());
+        return new LoginResponse(token);
     }
 
     @Override
