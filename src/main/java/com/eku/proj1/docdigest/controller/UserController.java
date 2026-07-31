@@ -1,5 +1,7 @@
 package com.eku.proj1.docdigest.controller;
 
+import com.eku.proj1.docdigest.dto.LoginRequest;
+import com.eku.proj1.docdigest.dto.LoginResponse;
 import com.eku.proj1.docdigest.dto.RegisterRequest;
 import com.eku.proj1.docdigest.dto.RegisterResponse;
 import com.eku.proj1.docdigest.entity.User;
@@ -24,5 +26,14 @@ public class UserController {
         RegisterResponse registeredUser = userService.registerUser(userDTO);
         return new ResponseEntity<>(registeredUser, HttpStatus.CREATED);
 
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<LoginResponse> loginUser(
+            @Valid @RequestBody LoginRequest loginRequest) {
+
+        LoginResponse loginResponse = userService.loginUser(loginRequest);
+
+        return ResponseEntity.ok(loginResponse);
     }
 }
