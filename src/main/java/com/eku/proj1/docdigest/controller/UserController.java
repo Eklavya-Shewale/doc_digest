@@ -31,6 +31,7 @@ public class UserController {
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> loginUser(
             @Valid @RequestBody LoginRequest loginRequest) {
+        System.out.println("========== LOGIN CONTROLLER HIT ==========");
 
         LoginResponse loginResponse = userService.loginUser(loginRequest);
 
