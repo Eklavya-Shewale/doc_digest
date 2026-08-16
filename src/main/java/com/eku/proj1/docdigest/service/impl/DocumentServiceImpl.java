@@ -2,11 +2,14 @@ package com.eku.proj1.docdigest.service.impl;
 
 
 import com.eku.proj1.docdigest.dto.DocumentResponse;
+import com.eku.proj1.docdigest.entity.Document;
+import com.eku.proj1.docdigest.entity.User;
 import com.eku.proj1.docdigest.repository.DocumentRepository;
 import com.eku.proj1.docdigest.repository.UserRepository;
 import com.eku.proj1.docdigest.service.DocumentService;
 import org.modelmapper.ModelMapper;
 import org.springframework.core.io.Resource;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -44,10 +47,29 @@ public class DocumentServiceImpl implements DocumentService {
 
             String storedFileName =
                     UUID.randomUUID() + "_" + file.getOriginalFilename();
-
+            //uploads/UUID_notes.pdf
             Path targetPath = uploadPath.resolve(storedFileName);
 
             Files.copy(file.getInputStream(), targetPath);
+
+            String email = SecurityContextHolder.getContext()
+                    .getAuthentication()
+                    .getName();
+
+            User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            Document document = new Document();
+
+            document.setTitle(file.getOriginalFilename());
+            document.setFileName(file.getOriginalFilename());
+            document.setFilePath(targetPath.toString());
+            document.setFileSize(file.getSize());
+            document.setUploader(user);
+
+            Document savedDocument = documentRepository.save(document);
+
+            return modelMapper.map(savedDocument, DocumentResponse.class);
 
         } catch (IOException e) {
             throw new RuntimeException("Could not create upload directory", e);
@@ -58,7 +80,18 @@ public class DocumentServiceImpl implements DocumentService {
 
     @Override
     public List<DocumentResponse> getUserDocuments() {
-        return List.of();
+        String email = SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getName();
+
+        User savedUser = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        List<Document> userDocuments = documentRepository.findByUploader(savedUser);
+
+        return userDocuments.stream()
+                .map(document -> modelMapper.map(document, DocumentResponse.class))
+                .toList();
     }
 
     @Override
