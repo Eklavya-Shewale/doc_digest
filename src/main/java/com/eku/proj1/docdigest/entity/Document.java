@@ -20,7 +20,8 @@ public class Document {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long document_id;
+    @Column(name = "document_id")
+    private Long id;
 
     @NotBlank(message = "Title is mandatory")
     @Size(max = 40, message = "Title must be less than 40 characters")

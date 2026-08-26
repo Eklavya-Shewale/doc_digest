@@ -32,4 +32,10 @@ public class DocumentController {
         List<DocumentResponse> documents = documentService.getUserDocuments();
         return ResponseEntity.ok(documents);
     }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<DocumentResponse> getDocumentById(@PathVariable("id") Long id) {
+        DocumentResponse response = documentService.getDocument(id);
+        return ResponseEntity.ok(response);
+    }
 }

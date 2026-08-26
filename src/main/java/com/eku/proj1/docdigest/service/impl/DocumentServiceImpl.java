@@ -95,8 +95,18 @@ public class DocumentServiceImpl implements DocumentService {
     }
 
     @Override
-    public DocumentResponse getDocument(Long documentId) {
-        return null;
+    public DocumentResponse getDocument(Long id) {
+       String email = SecurityContextHolder.getContext()
+               .getAuthentication()
+               .getName();
+
+       User user = userRepository.findByEmail(email)
+               .orElseThrow(()->new RuntimeException("User not found"));
+
+       Document document = documentRepository.findByIdAndUploader(id, user)
+               .orElseThrow(()->new RuntimeException("Document Not Found"));
+
+       return modelMapper.map(document, DocumentResponse.class);
     }
 
     @Override
