@@ -2,6 +2,7 @@ package com.eku.proj1.docdigest.controller;
 
 import com.eku.proj1.docdigest.dto.DocumentResponse;
 import com.eku.proj1.docdigest.service.DocumentService;
+import org.springframework.core.io.Resource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -37,5 +38,15 @@ public class DocumentController {
     public ResponseEntity<DocumentResponse> getDocumentById(@PathVariable("id") Long id) {
         DocumentResponse response = documentService.getDocument(id);
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{id}/download")
+    public ResponseEntity<Resource> downloadDocumentById(@PathVariable("id") Long id)
+    {
+        Resource resource = documentService.downloadDocument(id);
+
+        return ResponseEntity.ok()
+                .header("Content-Type","application/pdf")
+                .body(resource);
     }
 }

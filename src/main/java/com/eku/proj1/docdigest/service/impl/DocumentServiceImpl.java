@@ -8,6 +8,7 @@ import com.eku.proj1.docdigest.repository.DocumentRepository;
 import com.eku.proj1.docdigest.repository.UserRepository;
 import com.eku.proj1.docdigest.service.DocumentService;
 import org.modelmapper.ModelMapper;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -111,7 +112,25 @@ public class DocumentServiceImpl implements DocumentService {
 
     @Override
     public Resource downloadDocument(Long documentId) {
-        return null;
+        String email = SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getName();
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(()-> new RuntimeException("User not found"));
+
+        Document document = documentRepository.findByIdAndUploader(documentId,user)
+                .orElseThrow(()->new RuntimeException("Document Not Found"));
+
+        Path filePath = Paths.get(document.getFilePath());
+
+        Resource resource = new FileSystemResource(filePath);
+
+        if(!resource.exists())
+        {
+            throw new RuntimeException("Document Not Found");
+        }
+        return resource;
     }
 
     @Override
