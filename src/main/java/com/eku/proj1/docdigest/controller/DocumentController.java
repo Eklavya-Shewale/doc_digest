@@ -49,4 +49,13 @@ public class DocumentController {
                 .header("Content-Type","application/pdf")
                 .body(resource);
     }
+
+
+    @DeleteMapping("/{documentId}")
+    public ResponseEntity<Void> deleteDocumentById(@PathVariable("documentId") Long documentId)
+    {
+        documentService.deleteDocument(documentId);
+
+        return ResponseEntity.noContent().build();
+    }
 }

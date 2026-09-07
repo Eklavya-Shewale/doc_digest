@@ -43,6 +43,14 @@ public class DocumentServiceImpl implements DocumentService {
             throw new IllegalArgumentException("File cannot be Empty!");
         }
 
+        if (!"application/pdf".equals(file.getContentType())) {
+            throw new IllegalArgumentException("Only PDF files are allowed");
+        }
+
+        if (file.getSize() > 10 * 1024 * 1024) {
+            throw new IllegalArgumentException("File size must be less than 10 MB");
+        }
+
         try {
             Files.createDirectories(uploadPath);
 
@@ -135,6 +143,26 @@ public class DocumentServiceImpl implements DocumentService {
 
     @Override
     public void deleteDocument(Long documentId) {
+        String email = SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getName();
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(()->new RuntimeException("User Not Found"));
+
+        Document document = documentRepository.findByIdAndUploader(documentId , user)
+                .orElseThrow(()->new RuntimeException("Document Not Found"));
+
+        try{
+            Path filePath = Paths.get(document.getFilePath());
+            Files.deleteIfExists(filePath);
+
+            documentRepository.delete(document);
+        }
+        catch(IOException e)
+        {
+            throw new RuntimeException("Could Not Delete Document",e);
+        }
 
     }
 }
