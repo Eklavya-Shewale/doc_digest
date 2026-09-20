@@ -7,6 +7,7 @@ import com.eku.proj1.docdigest.entity.User;
 import com.eku.proj1.docdigest.repository.DocumentRepository;
 import com.eku.proj1.docdigest.repository.UserRepository;
 import com.eku.proj1.docdigest.service.DocumentService;
+import com.eku.proj1.docdigest.service.PdfService;
 import org.modelmapper.ModelMapper;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
@@ -27,30 +28,32 @@ public class DocumentServiceImpl implements DocumentService {
     private final DocumentRepository documentRepository;
     private final ModelMapper modelMapper;
     private final UserRepository userRepository;
+    private final PdfService pdfService;
 
-    public DocumentServiceImpl(DocumentRepository documentRepository, ModelMapper modelMapper, UserRepository userRepository) {
+    public DocumentServiceImpl(DocumentRepository documentRepository, ModelMapper modelMapper, UserRepository userRepository, PdfService pdfService) {
         this.documentRepository = documentRepository;
         this.modelMapper = modelMapper;
         this.userRepository = userRepository;
+        this.pdfService = pdfService;
     }
 
     private final Path uploadPath = Paths.get("uploads");
 
     @Override
     public DocumentResponse uploadDocument(MultipartFile file) {
-        if(file.isEmpty())
-        {
+        if (file.isEmpty()) {
             throw new IllegalArgumentException("File cannot be Empty!");
         }
 
-        if (!"application/pdf".equals(file.getContentType())) {
+        String fileName = file.getOriginalFilename();
+
+        if (fileName == null || !fileName.toLowerCase().endsWith(".pdf")) {
             throw new IllegalArgumentException("Only PDF files are allowed");
         }
 
         if (file.getSize() > 10 * 1024 * 1024) {
             throw new IllegalArgumentException("File size must be less than 10 MB");
         }
-
         try {
             Files.createDirectories(uploadPath);
 
@@ -60,6 +63,8 @@ public class DocumentServiceImpl implements DocumentService {
             Path targetPath = uploadPath.resolve(storedFileName);
 
             Files.copy(file.getInputStream(), targetPath);
+
+            String extractedText = pdfService.extractText(targetPath.toString());
 
             String email = SecurityContextHolder.getContext()
                     .getAuthentication()
@@ -75,13 +80,14 @@ public class DocumentServiceImpl implements DocumentService {
             document.setFilePath(targetPath.toString());
             document.setFileSize(file.getSize());
             document.setUploader(user);
+            document.setExtractedText(extractedText);
 
             Document savedDocument = documentRepository.save(document);
 
             return modelMapper.map(savedDocument, DocumentResponse.class);
 
         } catch (IOException e) {
-            throw new RuntimeException("Could not create upload directory", e);
+            throw new RuntimeException("Could not process uploaded PDF", e);
         }
 
 
