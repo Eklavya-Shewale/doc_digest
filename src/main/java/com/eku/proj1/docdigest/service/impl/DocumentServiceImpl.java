@@ -2,6 +2,7 @@ package com.eku.proj1.docdigest.service.impl;
 
 
 import com.eku.proj1.docdigest.dto.DocumentResponse;
+import com.eku.proj1.docdigest.dto.DocumentTextResponse;
 import com.eku.proj1.docdigest.entity.Document;
 import com.eku.proj1.docdigest.entity.User;
 import com.eku.proj1.docdigest.repository.DocumentRepository;
@@ -14,6 +15,7 @@ import org.springframework.core.io.Resource;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -123,6 +125,29 @@ public class DocumentServiceImpl implements DocumentService {
 
        return modelMapper.map(document, DocumentResponse.class);
     }
+
+
+    @Override
+    public DocumentTextResponse getDocumentText(Long documentId) {
+
+        String email = SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getName();
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Document document = documentRepository
+                .findByIdAndUploader(documentId, user)
+                .orElseThrow(() -> new RuntimeException("Document Not Found"));
+
+        return new DocumentTextResponse(
+                document.getId(),
+                document.getFileName(),
+                document.getExtractedText()
+        );
+    }
+
 
     @Override
     public Resource downloadDocument(Long documentId) {

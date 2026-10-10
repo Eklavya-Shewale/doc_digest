@@ -6,6 +6,7 @@ import org.springframework.core.io.Resource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import com.eku.proj1.docdigest.dto.DocumentTextResponse;
 
 import java.util.List;
 
@@ -50,12 +51,21 @@ public class DocumentController {
                 .body(resource);
     }
 
-
     @DeleteMapping("/{documentId}")
     public ResponseEntity<Void> deleteDocumentById(@PathVariable("documentId") Long documentId)
     {
         documentService.deleteDocument(documentId);
 
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{documentId}/text")
+    public ResponseEntity<DocumentTextResponse> getDocumentText(
+            @PathVariable Long documentId) {
+
+        DocumentTextResponse response =
+                documentService.getDocumentText(documentId);
+
+        return ResponseEntity.ok(response);
     }
 }
