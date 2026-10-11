@@ -23,5 +23,7 @@ public interface DocumentService {
 
     void deleteDocument(Long documentId);
 
+    String summarizeDocument(Long documentId);
+
 
 }

@@ -68,4 +68,11 @@ public class DocumentController {
 
         return ResponseEntity.ok(response);
     }
+
+    @PostMapping("/{documentId}/summarize")
+    public ResponseEntity<String> summarizeDocument(@PathVariable Long documentId) {
+        String summary = documentService.summarizeDocument(documentId);
+
+        return ResponseEntity.ok(summary);
+    }
 }

@@ -15,6 +15,7 @@ import org.springframework.core.io.Resource;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import com.eku.proj1.docdigest.service.GeminiService;
 
 
 import java.io.IOException;
@@ -31,12 +32,14 @@ public class DocumentServiceImpl implements DocumentService {
     private final ModelMapper modelMapper;
     private final UserRepository userRepository;
     private final PdfService pdfService;
+    private final GeminiService geminiService;
 
-    public DocumentServiceImpl(DocumentRepository documentRepository, ModelMapper modelMapper, UserRepository userRepository, PdfService pdfService) {
+    public DocumentServiceImpl(DocumentRepository documentRepository, ModelMapper modelMapper, UserRepository userRepository, PdfService pdfService,GeminiService geminiService) {
         this.documentRepository = documentRepository;
         this.modelMapper = modelMapper;
         this.userRepository = userRepository;
         this.pdfService = pdfService;
+        this.geminiService = geminiService;
     }
 
     private final Path uploadPath = Paths.get("uploads");
@@ -195,5 +198,27 @@ public class DocumentServiceImpl implements DocumentService {
             throw new RuntimeException("Could Not Delete Document",e);
         }
 
+    }
+
+    @Override
+    public String summarizeDocument(Long documentId) {
+      String email = SecurityContextHolder.getContext()
+              .getAuthentication()
+              .getName();
+
+      User user = userRepository.findByEmail(email)
+              .orElseThrow(()->new RuntimeException("User Not Found"));
+
+      Document document = documentRepository.findByIdAndUploader(documentId, user)
+              .orElseThrow(()->new RuntimeException("Document Not Found"));
+
+      String extractedText = document.getExtractedText();
+
+      if(extractedText == null || extractedText.isBlank())
+      {
+          throw new IllegalArgumentException(
+                  "No extracted text available for this document");
+      }
+      return geminiService.summarizeText(extractedText);
     }
 }
