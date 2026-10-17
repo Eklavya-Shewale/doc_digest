@@ -59,4 +59,31 @@ public class GeminiVisionServiceImpl implements GeminiVisionService {
             throw new RuntimeException("Could not read uploaded image",e);
         }
     }
+
+    @Override
+    public String analyzeImage(byte[]imageBytes, String contentType)
+    {
+        Content content = Content.fromParts(
+                Part.fromText("""
+                        Analyze this image for a student.
+                        Extract any readable text.
+                        Explain diagrams, charts, and equations where possible.
+                        Organize the response with clear headings.
+                        Do not invent details that are not visible.
+                        """),
+                Part.fromBytes(imageBytes, contentType!=null ? contentType : "image/png")
+        );
+
+        GenerateContentResponse response = client.models.generateContent(model,content,null);
+
+        String result = response.text();
+
+        if(result == null || result.isBlank())
+        {
+            throw new RuntimeException("Vision model returned an empty response");
+        }
+
+        return result;
+
+    }
 }

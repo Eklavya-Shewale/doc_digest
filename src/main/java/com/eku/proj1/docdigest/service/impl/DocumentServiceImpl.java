@@ -16,6 +16,15 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import com.eku.proj1.docdigest.service.GeminiService;
+import com.eku.proj1.docdigest.service.GeminiVisionService;
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.rendering.PDFRenderer;
+import org.apache.pdfbox.rendering.ImageType;
+
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 
 
 import java.io.IOException;
@@ -33,12 +42,15 @@ public class DocumentServiceImpl implements DocumentService {
     private final UserRepository userRepository;
     private final PdfService pdfService;
     private final GeminiService geminiService;
+    private final GeminiVisionService geminiVisionService;
 
-    public DocumentServiceImpl(DocumentRepository documentRepository, ModelMapper modelMapper, UserRepository userRepository, PdfService pdfService,GeminiService geminiService) {
+    public DocumentServiceImpl(DocumentRepository documentRepository, ModelMapper modelMapper,
+                               UserRepository userRepository, PdfService pdfService,GeminiService geminiService, GeminiVisionService geminiVisionService) {
         this.documentRepository = documentRepository;
         this.modelMapper = modelMapper;
         this.userRepository = userRepository;
         this.pdfService = pdfService;
+        this.geminiVisionService = geminiVisionService;
         this.geminiService = geminiService;
     }
 
@@ -214,11 +226,62 @@ public class DocumentServiceImpl implements DocumentService {
 
       String extractedText = document.getExtractedText();
 
-      if(extractedText == null || extractedText.isBlank())
+      String visualAnalysis = analyzePdfPages(document.getFilePath());
+
+      StringBuilder combinedContent = new StringBuilder();;
+
+      if(extractedText != null && !extractedText.isBlank())
+      {
+          combinedContent.append("EXTRACTED PDF TEXT:\n")
+                  .append(extractedText)
+                  .append("\n\n");
+      }
+
+      if(!visualAnalysis.isBlank())
+      {
+          combinedContent.append("VISUAL ANALYSIS OF PDF PAGES: \n")
+                  .append(visualAnalysis);
+      }
+
+      if(combinedContent.isEmpty())
       {
           throw new IllegalArgumentException(
-                  "No extracted text available for this document");
+                  "No text or visual content couldd be extracted from this document");
+
       }
-      return geminiService.summarizeText(extractedText);
+      return geminiService.summarizeText(combinedContent.toString());
+    }
+
+    private String analyzePdfPages(String filePath)
+    {
+        StringBuilder visualAnalysis = new StringBuilder();
+
+        try(PDDocument pdfDocument = Loader.loadPDF(Paths.get(filePath).toFile()))
+        {
+            PDFRenderer pdfRenderer = new PDFRenderer(pdfDocument);;
+
+            for(int page = 0; page<pdfDocument.getNumberOfPages(); page++)
+            {
+                BufferedImage image = pdfRenderer.renderImageWithDPI(
+                        page, 100, ImageType.RGB);
+
+                try(ByteArrayOutputStream outputStream = new ByteArrayOutputStream())
+                {
+                    ImageIO.write(image, "png", outputStream);
+
+                    String analysis = geminiVisionService.analyzeImage(outputStream.toByteArray(), "image/png");
+
+                    visualAnalysis.append("Page ")
+                            .append(page+1)
+                            .append(" visual analysis:\n")
+                            .append(analysis)
+                            .append("\n\n");
+                }
+            }
+        } catch(IOException e)
+        {
+            throw new RuntimeException("Could not Analyze PDF Pages" , e);
+        }
+        return visualAnalysis.toString();
     }
 }
