@@ -7,8 +7,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import com.eku.proj1.docdigest.dto.DocumentTextResponse;
-
+import org.springframework.data.domain.Page;
 import java.util.List;
+import com.eku.proj1.docdigest.dto.FlashcardResponse;
 
 @RestController
 @RequestMapping("/api/documents")
@@ -29,11 +30,27 @@ public class DocumentController {
         return ResponseEntity.ok(response);
     }
 
+
     @GetMapping
-    public ResponseEntity<List<DocumentResponse>> getUserDocuments() {
-        List<DocumentResponse> documents = documentService.getUserDocuments();
+    public ResponseEntity<Page<DocumentResponse>> getUserDocuments(
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "uploadDate") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDirection,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        Page<DocumentResponse> documents =
+                documentService.searchDocuments(
+                        search,
+                        sortBy,
+                        sortDirection,
+                        page,
+                        size
+                );
+
         return ResponseEntity.ok(documents);
     }
+
 
     @GetMapping("/{id}")
     public ResponseEntity<DocumentResponse> getDocumentById(@PathVariable("id") Long id) {
@@ -74,5 +91,13 @@ public class DocumentController {
         String summary = documentService.summarizeDocument(documentId);
 
         return ResponseEntity.ok(summary);
+    }
+
+    @PostMapping("/{documentId}/flashcards")
+    public ResponseEntity<List<FlashcardResponse>> generateFlashcards(@PathVariable Long documentId)
+    {
+        List<FlashcardResponse> flashcards = documentService.generateFlashcards(documentId);
+
+        return ResponseEntity.ok(flashcards);
     }
 }

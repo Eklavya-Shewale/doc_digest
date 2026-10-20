@@ -21,12 +21,17 @@ import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.rendering.PDFRenderer;
 import org.apache.pdfbox.rendering.ImageType;
-
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
-
-
+import com.eku.proj1.docdigest.dto.FlashcardResponse;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.List;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -43,6 +48,7 @@ public class DocumentServiceImpl implements DocumentService {
     private final PdfService pdfService;
     private final GeminiService geminiService;
     private final GeminiVisionService geminiVisionService;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public DocumentServiceImpl(DocumentRepository documentRepository, ModelMapper modelMapper,
                                UserRepository userRepository, PdfService pdfService,GeminiService geminiService, GeminiVisionService geminiVisionService) {
@@ -284,4 +290,81 @@ public class DocumentServiceImpl implements DocumentService {
         }
         return visualAnalysis.toString();
     }
+
+    @Override
+    public Page<DocumentResponse> searchDocuments(
+            String search,
+            String sortBy,
+            String sortDirection,
+            int page,
+            int size)
+    {
+        String email = SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getName();
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(()->new RuntimeException("User Not Found"));;
+
+                List<String> allowedSortFields = List.of("title", "uploadDate", "fileSize", "fileName");
+
+                if(!allowedSortFields.contains(sortBy))
+                {
+                    throw new IllegalArgumentException("Invalid sort field");
+                }
+
+                if(page < 0 || size < 1 || size > 100)
+                {
+                    throw new IllegalArgumentException("Invalid page or size");
+                }
+
+                //Determine ASC or DESC Order
+                Sort.Direction direction = Sort.Direction.fromString(sortDirection);
+
+                Pageable pageable = PageRequest.of(
+                        page, size, Sort.by(direction, sortBy)
+                );
+
+                //To return all current user documents, enter empty search string.
+                String keyword = search == null ? "" : search.trim();
+
+                Page<Document> documents = documentRepository.findByUploaderAndTitleContainingIgnoreCaseOrUploaderAndFileNameContainingIgnoreCase(
+                        user, keyword, user, keyword, pageable
+                );
+
+                //Converting each document entity into a document Response DTO
+
+        return documents.map(document -> modelMapper.map(document, DocumentResponse.class));
+    }
+
+    @Override
+    public List<FlashcardResponse> generateFlashcards(Long documentId)
+    {
+        String email = SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getName();
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(()->new RuntimeException("User Not Found"));
+
+        Document document = documentRepository.findByIdAndUploader(documentId,user)
+                .orElseThrow(()->new RuntimeException("Document Not Found"));
+
+        String extractedText = document.getExtractedText();
+
+        if(extractedText == null || extractedText.isBlank())
+        {
+            throw new IllegalArgumentException("No extracted text available for flashcard generation");
+        }
+
+        String json = geminiService.generateFlashcards(extractedText);
+
+        try{
+            return objectMapper.readValue(json, new TypeReference<List<FlashcardResponse>>(){});
+        }
+        catch(com.fasterxml.jackson.core.JsonProcessingException e){
+            throw new RuntimeException("Could not parse generated flashcards", e);
+        }
+    }
+
 }
