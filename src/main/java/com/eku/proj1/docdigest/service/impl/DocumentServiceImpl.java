@@ -4,8 +4,11 @@ package com.eku.proj1.docdigest.service.impl;
 import com.eku.proj1.docdigest.dto.DocumentResponse;
 import com.eku.proj1.docdigest.dto.DocumentTextResponse;
 import com.eku.proj1.docdigest.entity.Document;
+import com.eku.proj1.docdigest.entity.Flashcard;
+import com.eku.proj1.docdigest.entity.FlashcardSet;
 import com.eku.proj1.docdigest.entity.User;
 import com.eku.proj1.docdigest.repository.DocumentRepository;
+import com.eku.proj1.docdigest.repository.FlashcardSetRepository;
 import com.eku.proj1.docdigest.repository.UserRepository;
 import com.eku.proj1.docdigest.service.DocumentService;
 import com.eku.proj1.docdigest.service.PdfService;
@@ -36,8 +39,11 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.List;
+import com.eku.proj1.docdigest.entity.FlashcardSet;
+import com.eku.proj1.docdigest.dto.FlashcardSetResponse;
+import org.springframework.security.core.context.SecurityContextHolder;
 import java.util.UUID;
+import com.eku.proj1.docdigest.repository.FlashcardRepository;
 
 @Service
 public class DocumentServiceImpl implements DocumentService {
@@ -45,16 +51,21 @@ public class DocumentServiceImpl implements DocumentService {
     private final DocumentRepository documentRepository;
     private final ModelMapper modelMapper;
     private final UserRepository userRepository;
+    private final FlashcardRepository flashcardRepository;
+    private final FlashcardSetRepository flashcardSetRepository;
     private final PdfService pdfService;
     private final GeminiService geminiService;
     private final GeminiVisionService geminiVisionService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public DocumentServiceImpl(DocumentRepository documentRepository, ModelMapper modelMapper,
-                               UserRepository userRepository, PdfService pdfService,GeminiService geminiService, GeminiVisionService geminiVisionService) {
+                               UserRepository userRepository, FlashcardRepository flashcardRepository, FlashcardSetRepository flashcardSetRepository,
+                               PdfService pdfService, GeminiService geminiService, GeminiVisionService geminiVisionService) {
         this.documentRepository = documentRepository;
         this.modelMapper = modelMapper;
         this.userRepository = userRepository;
+        this.flashcardRepository = flashcardRepository;
+        this.flashcardSetRepository = flashcardSetRepository;
         this.pdfService = pdfService;
         this.geminiVisionService = geminiVisionService;
         this.geminiService = geminiService;
@@ -337,34 +348,122 @@ public class DocumentServiceImpl implements DocumentService {
         return documents.map(document -> modelMapper.map(document, DocumentResponse.class));
     }
 
+
     @Override
-    public List<FlashcardResponse> generateFlashcards(Long documentId)
-    {
+    public List<FlashcardResponse> generateFlashcards(Long documentId) {
+
         String email = SecurityContextHolder.getContext()
-                .getAuthentication()
-                .getName();
+                .getAuthentication().getName();
 
         User user = userRepository.findByEmail(email)
-                .orElseThrow(()->new RuntimeException("User Not Found"));
+                .orElseThrow(() -> new RuntimeException("User Not Found"));
 
-        Document document = documentRepository.findByIdAndUploader(documentId,user)
-                .orElseThrow(()->new RuntimeException("Document Not Found"));
+        Document document = documentRepository
+                .findByIdAndUploader(documentId, user)
+                .orElseThrow(() -> new RuntimeException("Document Not Found"));
 
         String extractedText = document.getExtractedText();
 
-        if(extractedText == null || extractedText.isBlank())
-        {
-            throw new IllegalArgumentException("No extracted text available for flashcard generation");
+        if (extractedText == null || extractedText.isBlank()) {
+            throw new IllegalArgumentException(
+                    "No extracted text available for flashcard generation");
         }
 
         String json = geminiService.generateFlashcards(extractedText);
 
-        try{
-            return objectMapper.readValue(json, new TypeReference<List<FlashcardResponse>>(){});
-        }
-        catch(com.fasterxml.jackson.core.JsonProcessingException e){
-            throw new RuntimeException("Could not parse generated flashcards", e);
+        try {
+            List<FlashcardResponse> flashcards = objectMapper.readValue(
+                    json,
+                    new TypeReference<List<FlashcardResponse>>() {}
+            );
+
+            if (flashcards.isEmpty()) {
+                throw new IllegalArgumentException(
+                        "Gemini generated no flashcards");
+            }
+
+            // Create and save a new set for this generation.
+            FlashcardSet savedSet =
+                    flashcardSetRepository.save(new FlashcardSet(document));
+
+            // Associate every generated card with the new set.
+            List<Flashcard> entities = flashcards.stream()
+                    .map(card -> new Flashcard(
+                            card.getQuestion(),
+                            card.getAnswer(),
+                            savedSet
+                    ))
+                    .toList();
+
+            List<Flashcard> savedFlashcards =
+                    flashcardRepository.saveAll(entities);
+
+            return savedFlashcards.stream()
+                    .map(card -> new FlashcardResponse(
+                            card.getQuestion(),
+                            card.getAnswer()))
+                    .toList();
+
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw new RuntimeException(
+                    "Could not parse generated flashcards", e);
         }
     }
 
+    @Override
+    public List<FlashcardSetResponse> getFlashcardSets(Long documentId) {
+
+        String email = SecurityContextHolder.getContext()
+                .getAuthentication().getName();
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User Not Found"));
+
+        Document document = documentRepository
+                .findByIdAndUploader(documentId, user)
+                .orElseThrow(() -> new RuntimeException("Document Not Found"));
+
+        List<FlashcardSet> sets =
+                flashcardSetRepository.findByDocumentOrderByCreatedAtDesc(document);
+
+        return sets.stream()
+                .map(set -> new FlashcardSetResponse(
+                        set.getId(),
+                        set.getCreatedAt(),
+                        flashcardRepository.countByFlashcardSet(set)
+                ))
+                .toList();
+    }
+
+    @Override
+    public List<FlashcardResponse> getFlashcardsFromSet(
+            Long documentId, Long setId) {
+
+        String email = SecurityContextHolder.getContext()
+                .getAuthentication().getName();
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User Not Found"));
+
+        Document document = documentRepository
+                .findByIdAndUploader(documentId, user)
+                .orElseThrow(() -> new RuntimeException("Document Not Found"));
+
+        FlashcardSet flashcardSet = flashcardSetRepository.findById(setId)
+                .orElseThrow(() -> new RuntimeException("Flashcard Set Not Found"));
+
+        if (!flashcardSet.getDocument().getId().equals(document.getId())) {
+            throw new IllegalArgumentException(
+                    "Flashcard set does not belong to this document");
+        }
+
+        List<Flashcard> flashcards =
+                flashcardRepository.findByFlashcardSet(flashcardSet);
+
+        return flashcards.stream()
+                .map(card -> new FlashcardResponse(
+                        card.getQuestion(),
+                        card.getAnswer()))
+                .toList();
+    }
 }

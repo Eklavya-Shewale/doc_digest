@@ -9,6 +9,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.eku.proj1.docdigest.dto.DocumentTextResponse;
 import org.springframework.data.domain.Page;
 import java.util.List;
+import com.eku.proj1.docdigest.dto.FlashcardSetResponse;
 
 public interface DocumentService {
 
@@ -34,8 +35,11 @@ public interface DocumentService {
             int size
     );
 
+    List<FlashcardSetResponse> getFlashcardSets(Long documentId);
 
     List<FlashcardResponse> generateFlashcards(Long documentId);
+
+    List<FlashcardResponse> getFlashcardsFromSet(Long documentId, Long setId);
 
 
 }

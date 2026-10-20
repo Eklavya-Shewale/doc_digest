@@ -10,6 +10,7 @@ import com.eku.proj1.docdigest.dto.DocumentTextResponse;
 import org.springframework.data.domain.Page;
 import java.util.List;
 import com.eku.proj1.docdigest.dto.FlashcardResponse;
+import com.eku.proj1.docdigest.dto.FlashcardSetResponse;
 
 @RestController
 @RequestMapping("/api/documents")
@@ -97,6 +98,25 @@ public class DocumentController {
     public ResponseEntity<List<FlashcardResponse>> generateFlashcards(@PathVariable Long documentId)
     {
         List<FlashcardResponse> flashcards = documentService.generateFlashcards(documentId);
+
+        return ResponseEntity.ok(flashcards);
+    }
+
+    @GetMapping("/{documentId}/flashcard-sets")
+    public ResponseEntity<List<FlashcardSetResponse>> getFlashcardSets(
+            @PathVariable Long documentId) {
+
+        List<FlashcardSetResponse> sets =
+                documentService.getFlashcardSets(documentId);
+
+        return ResponseEntity.ok(sets);
+    }
+
+    @GetMapping("/{documentId}/flashcard-sets/{setId}")
+    public ResponseEntity<List<FlashcardResponse>> getFlashcardsFromSet(@PathVariable Long documentId, @PathVariable Long setId) {
+
+        List<FlashcardResponse> flashcards =
+                documentService.getFlashcardsFromSet(documentId, setId);
 
         return ResponseEntity.ok(flashcards);
     }
